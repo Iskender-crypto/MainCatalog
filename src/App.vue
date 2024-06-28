@@ -1,21 +1,46 @@
 <script setup>
-import {computed, onMounted, ref, watch} from "vue";
-import axios from "axios";
+import { ref, computed, onMounted, watch } from 'vue';
+import axios from 'axios';
 
-const response = ref(false);
-const timeOut = ref();
 const searchField = ref('Batman');
 const movies = ref([]);
 const currentPage = ref(1);
 const totalResults = ref(0);
-const message = ref('');
-const hasNextPage = computed(() => {
-  return currentPage.value * 10 < totalResults.value;
+const response = ref(true);
+
+const getMovies = async () => {
+  try {
+    const { data } = await axios.get(`https://www.omdbapi.com/?apikey=8523cbb8&s=${searchField.value}&page=${currentPage.value}`);
+    if (data.Response === 'True') {
+      movies.value = data.Search || [];
+      totalResults.value = parseInt(data.totalResults) || 0;
+      response.value = true;
+    } else {
+      movies.value = [];
+      totalResults.value = 0;
+      response.value = false;
+    }
+  } catch (error) {
+    console.error('Ошибка при получении данных с сервера', error);
+    movies.value = [];
+    totalResults.value = 0;
+    response.value = false;
+  }
+};
+
+onMounted(async () => {
+  await getMovies();
 });
-const computedResponse = computed(() => response.value);
+
+watch(() => searchField.value, () => {
+  currentPage.value = 1;
+  getMovies();
+}, { immediate: true });
+
+const pageCount = computed(() => Math.ceil(totalResults.value / 10));
 
 const nextPage = () => {
-  if (hasNextPage.value) {
+  if (currentPage.value < pageCount.value) {
     currentPage.value++;
     getMovies();
   }
@@ -28,43 +53,40 @@ const prevPage = () => {
   }
 };
 
-const getMovies = async () => {
-  try {
-    const {data} = await axios.get(`https://www.omdbapi.com/?apikey=8523cbb8&s=${searchField.value}&page=${currentPage.value}`);
-    if (data.Response === "True") {
-      movies.value = data.Search || [];
-      totalResults.value = parseInt(data.totalResults) || 0;
-      response.value = true;
-    } else {
-      movies.value = [];
-      totalResults.value = 0;
-      response.value = false;
-    }
-  } catch (error) {
-    console.error("Ошибка при получении данных с сервера", error);
-    movies.value = [];
-    totalResults.value = 0;
-    response.value = false;
+const generatePaginationButtons = () => {
+  const buttons = [];
+  const maxVisiblePages = 5; // Максимальное количество отображаемых кнопок
+
+  // Вычисляем начальную и конечную страницы для отображения
+  let startPage = Math.max(1, currentPage.value - Math.floor(maxVisiblePages / 2));
+  let endPage = Math.min(pageCount.value, startPage + maxVisiblePages - 1);
+
+  if (endPage - startPage < maxVisiblePages - 1) {
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
   }
+
+  // Генерируем кнопки пагинации
+  for (let page = startPage; page <= endPage; page++) {
+    buttons.push({
+      page,
+      isActive: page === currentPage.value,
+    });
+  }
+
+  return buttons;
 };
 
-onMounted(async () => {
-  await getMovies();
-});
+const goToFirstPage = () => {
+  currentPage.value = 1;
+  getMovies();
+};
 
-watch(
-    () => searchField.value,
-    async () => {
-      clearTimeout(timeOut.value);
-      timeOut.value = setTimeout(async () => {
-        currentPage.value = 1;
-        await getMovies();
-      }, 1300);
-    }
-);
-
-const pageCount = computed(() => Math.ceil(totalResults.value / 10));
+const goToLastPage = () => {
+  currentPage.value = pageCount.value;
+  getMovies();
+};
 </script>
+
 <template>
   <header class="header">
     <div class="container">
@@ -114,7 +136,11 @@ const pageCount = computed(() => Math.ceil(totalResults.value / 10));
           </div>
         </div>
       </div>
+
       <div class="content__pagination pagination">
+        <button @click="goToFirstPage" :disabled="currentPage === 1">
+          <<<
+        </button>
         <button @click="prevPage" :disabled="currentPage === 1">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left-short" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5"/>
@@ -122,18 +148,22 @@ const pageCount = computed(() => Math.ceil(totalResults.value / 10));
         </button>
         <div class="pagination__numbers">
           <button
-              v-for="page in pageCount"
-              :key="page"
-              @click="currentPage = page; getMovies();"
-              :class="{ active: currentPage === page }"
-          >{{ page }}</button>
+              v-for="button in generatePaginationButtons()"
+              :key="button.page"
+              @click="currentPage = button.page; getMovies();"
+              :class="{ active: button.isActive }"
+          >{{ button.page }}</button>
         </div>
-        <button @click="nextPage" :disabled="!hasNextPage">
+        <button @click="nextPage" :disabled="currentPage === pageCount">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right-short" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M4 8a.5.5 0 0 1 .5-.5h5.793L8.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L10.293 8.5H4.5A.5.5 0 0 1 4 8"/>
           </svg>
         </button>
+        <button @click="goToLastPage" :disabled="currentPage === pageCount">
+          >>>
+        </button>
       </div>
+
     </div>
   </main>
   <div class="message" v-if="!response">
@@ -143,6 +173,7 @@ const pageCount = computed(() => Math.ceil(totalResults.value / 10));
     нет результатов
   </div>
 </template>
+
 <style scoped>
 
 </style>
