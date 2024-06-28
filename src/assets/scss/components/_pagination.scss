@@ -1,0 +1,21 @@
+.pagination{
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 40px;
+  .pagination__numbers button {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    backdrop-filter: blur(5px);
+    background: rgba(138, 138, 138, 0.96);
+    cursor: pointer;
+    margin: 2px;
+  }
+
+  .pagination__numbers button.active {
+    background: rgba(213, 213, 213, 0.81);
+  }
+
+}

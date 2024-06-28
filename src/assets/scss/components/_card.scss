@@ -1,0 +1,28 @@
+.card{
+  &__img{
+    width: 100%;
+    height:230px;
+    object-fit: cover;
+    object-position: center;
+  }
+  &__img-placeholder{
+    height: 230px;
+    background-color: #d8d8d8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    img{
+      width: 40%;
+    }
+  }
+  &__content{
+    padding: 10px 10px 10px 20px;
+  }
+  &__content-flex{
+    display: flex;
+    margin-bottom: 10px;
+    b{
+      margin-right: 5px;
+    }
+  }
+}
